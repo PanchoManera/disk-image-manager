@@ -317,6 +317,10 @@ def convert_files():
             # Create DEF file
             working_file = session_data.temp_converted_file or session_data.current_file
             
+            # Ensure working file exists
+            if not os.path.exists(working_file):
+                return jsonify({'error': 'Working file not found'}), 400
+            
             # For IMD files, convert temporarily if not already done
             temp_img_file = None
             if session_data.current_file.lower().endswith('.imd') and not session_data.temp_converted_file:
@@ -324,31 +328,59 @@ def convert_files():
                 converter = IMD2IMGConverter(verbose=False)
                 success = converter.convert(session_data.current_file, temp_img_file)
                 if not success:
+                    # Clean up failed temp file
+                    try:
+                        os.unlink(temp_img_file)
+                    except:
+                        pass
                     return jsonify({'error': 'Failed to convert IMD for DEF creation'}), 500
                 working_file = temp_img_file
+            
+            # Ensure we have a valid working file after potential conversion
+            if not os.path.exists(working_file):
+                return jsonify({'error': 'Working file not available after conversion'}), 400
             
             # Generate DEF file
             temp_def = tempfile.NamedTemporaryFile(suffix='.def', delete=False)
             temp_def_path = temp_def.name
             temp_def.close()
             
-            geometry = GeometryDetector().detect_from_file(working_file)
-            options = DefGenerationOptions()
-            generator = DefGenerator(geometry, working_file, options)
-            
-            if generator.save_def_file(temp_def_path):
-                # Clean up temporary IMG if created
+            try:
+                # Detect geometry with error handling
+                geometry = GeometryDetector().detect_from_file(working_file)
+                if not geometry:
+                    return jsonify({'error': 'Failed to detect disk geometry'}), 500
+                
+                options = DefGenerationOptions()
+                generator = DefGenerator(geometry, working_file, options)
+                
+                if generator.save_def_file(temp_def_path):
+                    # Clean up temporary IMG if created
+                    if temp_img_file and os.path.exists(temp_img_file):
+                        try:
+                            os.unlink(temp_img_file)
+                        except:
+                            pass
+                    
+                    return send_file(temp_def_path, 
+                                   as_attachment=True, 
+                                   download_name=f"{os.path.splitext(session_data.original_filename or os.path.basename(session_data.current_file))[0]}.def")
+                else:
+                    return jsonify({'error': 'Failed to create DEF file'}), 500
+                    
+            except Exception as e:
+                # Clean up temporary files on error
                 if temp_img_file and os.path.exists(temp_img_file):
                     try:
                         os.unlink(temp_img_file)
                     except:
                         pass
-                
-                return send_file(temp_def_path, 
-                               as_attachment=True, 
-                               download_name=f"{os.path.splitext(session_data.original_filename or os.path.basename(session_data.current_file))[0]}.def")
-            else:
-                return jsonify({'error': 'Failed to create DEF file'}), 500
+                if os.path.exists(temp_def_path):
+                    try:
+                        os.unlink(temp_def_path)
+                    except:
+                        pass
+                return jsonify({'error': f'DEF creation error: {str(e)}'}), 500
                 
         else:
             return jsonify({'error': 'Unknown conversion type'}), 400
