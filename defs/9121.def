@@ -1,0 +1,15 @@
+disk hp.9121
+    cyls = 70
+    heads = 1
+    tracks * ibm.mfm
+        secs = 16
+        bps = 256
+        id = 0
+        h = 0
+        gap3 = 32
+        rate = 250
+        rpm = 300
+        interleave = 2
+        cskew = 4
+    end
+end

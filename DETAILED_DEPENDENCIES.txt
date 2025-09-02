@@ -1,0 +1,194 @@
+===============================================================================
+                    TD0 CONVERTER - DEPENDENCIAS DETALLADAS
+===============================================================================
+
+ANÁLISIS DE IMPORTACIONES Y DEPENDENCIAS:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           td0_converter_lib.py                             │
+│                               [CORE LIBRARY]                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ IMPORTACIONES:                                                              │
+│ ✓ from td0_to_hp150_pre_fixed import TD0Reader, TD0Decompressor            │
+│ ✓ from geometry_detector import GeometryDetectorLegacy                      │
+│ ✓ from def_generator import DefGenerator, DefGenerationOptions             │
+│                                                                             │
+│ CLASES PRINCIPALES:                                                         │
+│ • TD0Converter - Clase principal del conversor                             │
+│ • ConversionOptions - Opciones de conversión                               │
+│ • ConversionCallbacks - Callbacks para progreso                            │
+│ • ConversionStats - Estadísticas de conversión                             │
+│ • CRCCalculator - Calculador de CRC                                        │
+│ • EnhancedTD0Reader - Lector TD0 mejorado                                  │
+│                                                                             │
+│ FUNCIÓN PRINCIPAL:                                                          │
+│ • convert_td0_to_hp150() - Función de conversión principal                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │              │
+                              │              │
+                              ▼              ▼
+┌─────────────────────────────────┐  ┌─────────────────────────────────┐
+│     geometry_detector.py        │  │      def_generator.py           │
+│    [GEOMETRY DETECTION]         │  │     [DEF GENERATOR]             │
+├─────────────────────────────────┤  ├─────────────────────────────────┤
+│ IMPORTACIONES:                  │  │ IMPORTACIONES:                  │
+│ ✓ from td0_to_hp150_pre_fixed   │  │ ✓ from geometry_detector import │
+│   import TD0Reader,             │  │   GeometryInfo                  │
+│   TD0Decompressor               │  │                                 │
+│                                 │  │ CLASES PRINCIPALES:             │
+│ CLASES PRINCIPALES:             │  │ • DefGenerator - Generador      │
+│ • GeometryDetector - Detector   │  │ • DefGenerationOptions - Opciones │
+│ • GeometryInfo - Info geometría │  │                                 │
+│ • GeometryDetectorLegacy - Alias│  │ MÉTODOS PRINCIPALES:            │
+│                                 │  │ • generate_def_content()        │
+│ MÉTODOS PRINCIPALES:            │  │ • save_def_file()               │
+│ • detect_from_file()            │  │ • _generate_hp150_tracks()      │
+│ • detect_from_td0()             │  │ • _generate_pc_tracks()         │
+│ • detect_from_img()             │  │                                 │
+│ • _parse_td0_tracks()           │  │                                 │
+└─────────────────────────────────┘  └─────────────────────────────────┘
+                │                                      │
+                │                                      │
+                ▼                                      │
+┌─────────────────────────────────┐                   │
+│   td0_to_hp150_pre_fixed.py     │                   │
+│        [LEGACY BASE]            │                   │
+├─────────────────────────────────┤                   │
+│ CLASES PRINCIPALES:             │                   │
+│ • TD0Reader - Lector de TD0     │                   │
+│ • TD0Decompressor - Descompresor│                   │
+│                                 │                   │
+│ MÉTODOS PRINCIPALES:            │                   │
+│ • parse_header()                │                   │
+│ • parse_track()                 │                   │
+│ • parse_sector()                │                   │
+│ • parse_comment()               │                   │
+└─────────────────────────────────┘                   │
+                                                       │
+                                                       │
+                                    ┌──────────────────▼──────────────────┐
+                                    │       DEPENDENCIA INDIRECTA         │
+                                    │  def_generator usa geometry_detector │
+                                    │   para obtener GeometryInfo         │
+                                    └─────────────────────────────────────┘
+
+===============================================================================
+INTERFACES DE USUARIO:
+===============================================================================
+
+┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+│  td0_to_hp150_V3.0_modular.py   │           │        gui_example.py           │
+│       [CLI INTERFACE]           │           │       [GUI INTERFACE]           │
+├─────────────────────────────────┤           ├─────────────────────────────────┤
+│ IMPORTACIONES:                  │           │ IMPORTACIONES:                  │
+│ ✓ from td0_converter_lib import:│           │ ✓ from td0_converter_lib import:│
+│   - TD0Converter                │           │   - TD0Converter                │
+│   - ConversionOptions           │           │   - ConversionOptions           │
+│   - ConversionCallbacks         │           │   - ConversionCallbacks         │
+│   - ConversionResult            │           │   - ConversionResult            │
+│   - DebugLevel                  │           │   - DebugLevel                  │
+│   - convert_td0_to_hp150        │           │   - GeometryInfo                │
+│                                 │           │   - ConversionStats             │
+│ CLASES PRINCIPALES:             │           │ ✓ import tkinter components     │
+│ • CLICallbacks - Callbacks CLI  │           │                                 │
+│                                 │           │ CLASES PRINCIPALES:             │
+│ FUNCIONES PRINCIPALES:          │           │ • ConverterGUI - GUI principal  │
+│ • print_header()                │           │                                 │
+│ • print_geometry_info()         │           │ MÉTODOS PRINCIPALES:            │
+│ • print_statistics()            │           │ • setup_ui()                    │
+│ • create_parser()               │           │ • setup_callbacks()             │
+│ • validate_arguments()          │           │ • start_conversion()            │
+│ • main()                        │           │ • browse_input/output()         │
+└─────────────────────────────────┘           └─────────────────────────────────┘
+
+===============================================================================
+UTILIDAD INDEPENDIENTE:
+===============================================================================
+
+┌─────────────────────────────────┐
+│       generate_def.py           │
+│    [STANDALONE UTILITY]         │
+├─────────────────────────────────┤
+│ IMPORTACIONES:                  │
+│ ✓ from geometry_detector import │
+│   detect_geometry, GeometryInfo │
+│ ✓ from def_generator import     │
+│   DefGenerator,                 │
+│   DefGenerationOptions          │
+│                                 │
+│ FUNCIONES PRINCIPALES:          │
+│ • print_geometry_info()         │
+│ • print_def_preview()           │
+│ • create_parser()               │
+│ • validate_arguments()          │
+│ • process_single_file()         │
+│ • auto_generate_output_name()   │
+│ • main()                        │
+└─────────────────────────────────┘
+         │                 │
+         │                 │
+         ▼                 ▼
+┌─────────────────┐ ┌─────────────────┐
+│geometry_detector│ │  def_generator  │
+│      .py        │ │      .py        │
+└─────────────────┘ └─────────────────┘
+
+===============================================================================
+MATRIZ DE DEPENDENCIAS:
+===============================================================================
+
+              │ td0_  │ geom_ │ def_  │ td0_  │ gui_  │ gen_  │ legacy
+              │ conv_ │ detec │ gen_  │ mod_  │ exam_ │ def   │ _pre_
+              │ lib   │ tor   │ erator│ ular  │ ple   │       │ fixed
+─────────────────────────────────────────────────────────────────────────
+td0_conv_lib  │   -   │   ✓   │   ✓   │   ✗   │   ✗   │   ✗   │   ✓
+geom_detector │   ✗   │   -   │   ✗   │   ✗   │   ✗   │   ✗   │   ✓
+def_generator │   ✗   │   ✓   │   -   │   ✗   │   ✗   │   ✗   │   ✗
+td0_modular   │   ✓   │   ✗   │   ✗   │   -   │   ✗   │   ✗   │   ✗
+gui_example   │   ✓   │   ✗   │   ✗   │   ✗   │   -   │   ✗   │   ✗
+generate_def  │   ✗   │   ✓   │   ✓   │   ✗   │   ✗   │   -   │   ✗
+legacy_pre_fx │   ✗   │   ✗   │   ✗   │   ✗   │   ✗   │   ✗   │   -
+
+✓ = Dependencia directa (import)
+✗ = Sin dependencia
+
+===============================================================================
+FLUJO DE DATOS:
+===============================================================================
+
+1. ENTRADA DE DATOS:
+   TD0 file → td0_to_hp150_pre_fixed (TD0Reader) → Parsed TD0 data
+
+2. DETECCIÓN DE GEOMETRÍA:
+   Parsed TD0 data → geometry_detector → GeometryInfo
+
+3. CONVERSIÓN:
+   TD0 data + GeometryInfo → td0_converter_lib → IMG file
+
+4. GENERACIÓN DE DEF:
+   GeometryInfo → def_generator → .def file
+
+5. INTERFACES:
+   User input → CLI/GUI → td0_converter_lib → Results
+
+6. UTILIDAD INDEPENDIENTE:
+   TD0/IMG file → geometry_detector → GeometryInfo → def_generator → .def file
+
+===============================================================================
+PUNTOS DE EXTENSIÓN:
+===============================================================================
+
+🔌 NUEVAS INTERFACES:
+   • Web interface → td0_converter_lib
+   • REST API → td0_converter_lib  
+   • Batch processor → td0_converter_lib
+
+🔌 NUEVOS FORMATOS:
+   • geometry_detector → Nuevo detector de formato
+   • def_generator → Nuevo generador de formato
+
+🔌 NUEVAS CARACTERÍSTICAS:
+   • td0_converter_lib → Nuevas opciones de conversión
+   • ConversionCallbacks → Nuevos tipos de callback
+
+===============================================================================

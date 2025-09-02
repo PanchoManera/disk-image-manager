@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Disk images and archives (don't commit large binary files)
+*.img
+*.IMG
+*.td0
+*.TD0
+*.imd
+*.IMD
+*.scp
+*.SCP
+*.zip
+*.rar
+*.7z
+
+# Extracted files directories
+extracted_*/
+*_extracted/
+*_working/
+
+# Temporary files
+temp_*
+tmp_*
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Test files and outputs
+test_*.img
+output.img
+salida.img
+*_conversion.img
+
+# Backup directories
+backup_*/
+
+# Large documentation files that might be binary
+*.pdf
+*.doc
+*.docx
+
+# Flask session files
+flask_session/
+instance/
+
+# Any personal disk images or sensitive data
+MR.img
+MR.TD0
+MR_fixed.img
+fincalc_*.img
+visicalc_*.img
+touch_games_*.img
+
+# Reference repositories (external dependencies)
+reference/imd2raw/
+reference/wteledsk/

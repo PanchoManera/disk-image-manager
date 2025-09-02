@@ -1,0 +1,11 @@
+# Flask Web Application Requirements
+# Install with: pip install -r requirements_web.txt
+
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Web server (optional, for production)
+gunicorn==21.2.0
+
+# Required for existing modules
+# (These should already be installed from the main project requirements)

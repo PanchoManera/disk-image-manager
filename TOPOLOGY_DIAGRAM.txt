@@ -1,0 +1,137 @@
+===============================================================================
+                     TD0 CONVERTER - TOPOLOGÍA DE MÓDULOS
+===============================================================================
+
+ESTRUCTURA MODULAR Y CONEXIONES:
+
+                    ┌─────────────────────────────────────┐
+                    │        td0_converter_lib.py         │
+                    │         [CORE LIBRARY]              │
+                    │                                     │
+                    │ • TD0Converter                      │
+                    │ • ConversionOptions                 │
+                    │ • ConversionCallbacks               │
+                    │ • CRCCalculator                     │
+                    │ • EnhancedTD0Reader                 │
+                    └─────────────────────────────────────┘
+                              │           │
+                              │           │
+                    ┌─────────▼───────────▼─────────┐
+                    │                               │
+                    │                               │
+      ┌─────────────▼─────────────┐       ┌─────────▼─────────────┐
+      │   geometry_detector.py    │       │   def_generator.py    │
+      │   [GEOMETRY DETECTION]    │       │   [DEF GENERATOR]     │
+      │                           │       │                       │
+      │ • GeometryDetector        │       │ • DefGenerator        │
+      │ • GeometryInfo            │       │ • DefGenerationOpts   │
+      │ • detect_from_td0()       │       │ • generate_def()      │
+      │ • detect_from_img()       │       │ • save_def_file()     │
+      └─────────────┬─────────────┘       └─────────────┬─────────┘
+                    │                                   │
+                    │                                   │
+                    └─────────────┬─────────────────────┘
+                                  │
+                                  │
+              ┌───────────────────▼───────────────────┐
+              │    td0_to_hp150_pre_fixed.py         │
+              │        [LEGACY BASE]                  │
+              │                                       │
+              │ • TD0Reader                           │
+              │ • TD0Decompressor                     │
+              │ • parse_header()                      │
+              │ • parse_track()                       │
+              │ • parse_sector()                      │
+              └───────────────────────────────────────┘
+
+INTERFACES DE USUARIO:
+
+┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+│    td0_to_hp150_V3.0_modular.py │           │        gui_example.py           │
+│         [CLI INTERFACE]         │           │       [GUI INTERFACE]           │
+│                                 │           │                                 │
+│ • CLICallbacks                  │           │ • ConverterGUI                  │
+│ • print_header()                │           │ • setup_ui()                    │
+│ • print_geometry_info()         │           │ • setup_callbacks()             │
+│ • print_statistics()            │           │ • start_conversion()            │
+│ • create_parser()               │           │ • GUI con tkinter               │
+└─────────────────────────────────┘           └─────────────────────────────────┘
+             │                                           │
+             │                                           │
+             └─────────────────┬─────────────────────────┘
+                               │
+                               │
+                ┌──────────────▼──────────────┐
+                │     td0_converter_lib.py    │
+                │       [CORE LIBRARY]        │
+                └─────────────────────────────┘
+
+UTILIDAD INDEPENDIENTE:
+
+┌─────────────────────────────────┐
+│       generate_def.py           │
+│    [STANDALONE UTILITY]         │
+│                                 │
+│ • process_single_file()         │
+│ • print_geometry_info()         │
+│ • create_parser()               │
+│ • validate_arguments()          │
+└─────────────────────────────────┘
+         │                 │
+         │                 │
+         ▼                 ▼
+┌─────────────────┐ ┌─────────────────┐
+│geometry_detector│ │  def_generator  │
+│      .py        │ │      .py        │
+└─────────────────┘ └─────────────────┘
+
+===============================================================================
+DESCRIPCIÓN DE MÓDULOS:
+===============================================================================
+
+📦 MÓDULOS CORE (Verde):
+   • td0_converter_lib.py: Librería principal que coordina la conversión
+   • geometry_detector.py: Detecta geometría de discos TD0 e IMG
+   • def_generator.py: Genera archivos .def para Greaseweazle
+
+🖥️  INTERFACES DE USUARIO (Azul/Naranja):
+   • td0_to_hp150_V3.0_modular.py: Interfaz CLI modular
+   • gui_example.py: Interfaz GUI de ejemplo con tkinter
+
+🛠️  UTILIDADES (Púrpura):
+   • generate_def.py: Utilidad independiente para generar archivos .def
+
+⚙️  MÓDULOS LEGACY (Gris):
+   • td0_to_hp150_pre_fixed.py: Clases base TD0Reader y TD0Decompressor
+
+===============================================================================
+FLUJO DE DEPENDENCIAS:
+===============================================================================
+
+1. El CORE LIBRARY (td0_converter_lib.py) es el módulo principal que:
+   - Importa geometry_detector para detectar geometría
+   - Importa def_generator para generar archivos .def
+   - Importa clases base del módulo legacy
+
+2. Los MÓDULOS CORE tienen las siguientes dependencias:
+   - geometry_detector → td0_to_hp150_pre_fixed (para leer TD0)
+   - def_generator → geometry_detector (para obtener geometría)
+
+3. Las INTERFACES DE USUARIO usan:
+   - CLI y GUI → td0_converter_lib (librería principal)
+
+4. La UTILIDAD INDEPENDIENTE usa directamente:
+   - generate_def → geometry_detector + def_generator
+
+===============================================================================
+VENTAJAS DE ESTA ARQUITECTURA:
+===============================================================================
+
+✅ MODULARIDAD: Cada módulo tiene responsabilidades específicas
+✅ REUTILIZACIÓN: Los módulos core pueden usarse desde diferentes interfaces
+✅ TESTABILIDAD: Cada módulo se puede probar independientemente
+✅ EXTENSIBILIDAD: Fácil agregar nuevas interfaces (web, API, etc.)
+✅ MANTENIBILIDAD: Cambios en un módulo no afectan otros
+✅ SEPARACIÓN DE RESPONSABILIDADES: Lógica separada de presentación
+
+===============================================================================

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TD0/IMG/IMD File Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <header class="bg-dark text-white p-3 mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-hdd me-2"></i>
+                        TD0/IMG/IMD File Manager
+                    </h1>
+                    <small class="text-muted">Web interface for vintage disk image management</small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <span id="session-info" class="badge bg-secondary">Session: {{ session_id[:8] }}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- File Upload Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-upload me-2"></i>
+                            Upload Disk Image
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="upload-zone" class="upload-zone text-center p-4 border border-2 border-dashed rounded">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <p class="mb-3">Drag and drop a file here, or click to select</p>
+                            <input type="file" id="file-input" class="d-none" accept=".td0,.img,.imd,.TD0,.IMG,.IMD">
+                            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                                <i class="fas fa-folder-open me-2"></i>
+                                Choose File
+                            </button>
+                            <div class="mt-2">
+                                <small class="text-muted">Supported formats: TD0, IMG, IMD (max 16MB)</small>
+                            </div>
+                        </div>
+                        <div id="upload-progress" class="mt-3" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div id="upload-status" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Information Section -->
+        <div id="file-info-section" class="row mb-4" style="display: none;">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Disk Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="sector-info-content">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-tools me-2"></i>
+                            File Operations
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button id="btn-td0-to-img" class="btn btn-outline-primary" style="display: none;">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                Convert TD0 → IMG
+                            </button>
+                            <button id="btn-imd-to-img" class="btn btn-outline-primary" style="display: none;">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                Convert IMD → IMG
+                            </button>
+                            <button id="btn-create-def" class="btn btn-outline-success">
+                                <i class="fas fa-file-code me-2"></i>
+                                Create DEF File
+                            </button>
+                            <button id="btn-extract-files" class="btn btn-outline-warning">
+                                <i class="fas fa-file-archive me-2"></i>
+                                Extract All Files
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File List Section -->
+        <div id="file-list-section" class="row" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Files in Disk Image
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="file-filter" class="form-control form-control-sm" 
+                                   placeholder="Filter files..." style="width: 200px;">
+                            <select id="file-type-filter" class="form-select form-select-sm" style="width: 150px;">
+                                <option value="">All Types</option>
+                                <option value="directory">Directories</option>
+                                <option value="system">System</option>
+                                <option value="hidden">Hidden</option>
+                                <option value="archive">Archive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="file-list-content">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="status-messages" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;"></div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        const SESSION_ID = '{{ session_id }}';
+        let currentSessionData = null;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFileUpload();
+            checkSessionStatus();
+        });
+        
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('file-input');
+            const uploadZone = document.getElementById('upload-zone');
+            
+            // File input change
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    uploadFile(e.target.files[0]);
+                }
+            });
+            
+            // Drag and drop
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadZone.classList.add('drag-over');
+            });
+            
+            uploadZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('drag-over');
+            });
+            
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('drag-over');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    uploadFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+        
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('session_id', SESSION_ID);
+            
+            showProgress(true);
+            showStatus('Uploading file...', 'info');
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showProgress(false);
+                
+                if (data.success) {
+                    showStatus('File uploaded successfully!', 'success');
+                    loadFileInfo();
+                } else {
+                    showStatus(data.error || 'Upload failed', 'error');
+                }
+            })
+            .catch(error => {
+                showProgress(false);
+                showStatus('Upload failed: ' + error.message, 'error');
+            });
+        }
+        
+        function checkSessionStatus() {
+            fetch(`/session_status/${SESSION_ID}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.has_file) {
+                    loadFileInfo();
+                }
+            })
+            .catch(error => {
+                console.log('No existing session');
+            });
+        }
+        
+        function loadFileInfo() {
+            // Load sector information
+            fetch(`/sector_info/${SESSION_ID}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                    return;
+                }
+                
+                displaySectorInfo(data);
+                updateOperationButtons(data);
+                document.getElementById('file-info-section').style.display = 'block';
+                
+                // Load file list
+                loadFileList();
+            })
+            .catch(error => {
+                showStatus('Failed to load file info: ' + error.message, 'error');
+            });
+        }
+        
+        function loadFileList() {
+            fetch(`/list_files/${SESSION_ID}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                    return;
+                }
+                
+                displayFileList(data.files, data.format_info);
+                displayVolumeInfo(data.disk_info);
+                document.getElementById('file-list-section').style.display = 'block';
+            })
+            .catch(error => {
+                showStatus('Failed to load file list: ' + error.message, 'error');
+            });
+        }
+        
+        function displaySectorInfo(info) {
+            const content = document.getElementById('sector-info-content');
+            content.innerHTML = `
+                <table class="table table-sm">
+                    <tr><td><strong>File:</strong></td><td>${info.filename}</td></tr>
+                    <tr><td><strong>Format:</strong></td><td>${info.source_format}</td></tr>
+                    <tr><td><strong>Size:</strong></td><td>${info.file_size_kb} KB (${info.file_size.toLocaleString()} bytes)</td></tr>
+                    <tr><td><strong>Geometry:</strong></td><td>${info.cylinders}C/${info.heads}H/${info.sectors_per_track}S</td></tr>
+                    <tr><td><strong>Sector Size:</strong></td><td>${info.bytes_per_sector} bytes</td></tr>
+                    <tr><td><strong>Total Sectors:</strong></td><td>${info.total_sectors.toLocaleString()}</td></tr>
+                    ${info.has_phantom ? '<tr><td><strong>Phantom:</strong></td><td><span class="text-warning">Yes</span></td></tr>' : ''}
+                </table>
+                <div id="volume-info-section"></div>
+                ${info.notes && info.notes.length > 0 ? 
+                    '<div class="alert alert-info mt-2"><small>' + info.notes.join('<br>') + '</small></div>' : 
+                    ''}
+            `;
+        }
+        
+        function updateOperationButtons(info) {
+            // Show/hide conversion buttons based on file format
+            document.getElementById('btn-td0-to-img').style.display = 
+                info.source_format === 'TD0' ? 'block' : 'none';
+            document.getElementById('btn-imd-to-img').style.display = 
+                info.source_format === 'IMD' ? 'block' : 'none';
+            
+            // Add event listeners
+            document.getElementById('btn-td0-to-img').onclick = () => convertFile('td0_to_img');
+            document.getElementById('btn-imd-to-img').onclick = () => convertFile('imd_to_img');
+            document.getElementById('btn-create-def').onclick = () => convertFile('create_def');
+            document.getElementById('btn-extract-files').onclick = () => extractFiles();
+        }
+        
+        function displayFileList(files, formatInfo) {
+            const content = document.getElementById('file-list-content');
+            
+            if (files.length === 0) {
+                content.innerHTML = '<div class="text-center text-muted">No files found in disk image</div>';
+                return;
+            }
+            
+            // Setup filtering
+            setupFileFiltering(files);
+            
+            const formatBadge = formatInfo.type ? 
+                `<span class="badge bg-info">${formatInfo.type.toUpperCase()}</span>` : '';
+            
+            content.innerHTML = `
+                <div class="mb-3">
+                    <small class="text-muted">Format: ${formatBadge} | Files: ${files.length}</small>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm" id="files-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Attributes</th>
+                                <th>Cluster</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-tbody">
+                            ${files.map(file => createFileRow(file)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function createFileRow(file) {
+            const sizeStr = file.is_directory ? '<DIR>' : 
+                           file.size ? file.size.toLocaleString() + ' bytes' : '-';
+            
+            const attrs = [];
+            if (file.attr_flags.readonly) attrs.push('<span class="badge bg-secondary">R</span>');
+            if (file.attr_flags.hidden) attrs.push('<span class="badge bg-dark">H</span>');
+            if (file.attr_flags.system) attrs.push('<span class="badge bg-warning">S</span>');
+            if (file.attr_flags.directory) attrs.push('<span class="badge bg-primary">D</span>');
+            if (file.attr_flags.archive) attrs.push('<span class="badge bg-success">A</span>');
+            if (file.attr_flags.volume) attrs.push('<span class="badge bg-info">V</span>');
+            
+            return `
+                <tr class="file-row" data-name="${file.full_name.toLowerCase()}" 
+                    data-type="${file.is_directory ? 'directory' : 'file'}"
+                    data-attrs="${Object.keys(file.attr_flags).filter(k => file.attr_flags[k]).join(' ')}">
+                    <td>
+                        <i class="fas ${file.is_directory ? 'fa-folder' : 'fa-file'} me-2"></i>
+                        ${file.full_name}
+                    </td>
+                    <td>${sizeStr}</td>
+                    <td>${attrs.join(' ')}</td>
+                    <td>${file.cluster || '-'}</td>
+                </tr>
+            `;
+        }
+        
+        function setupFileFiltering(files) {
+            const nameFilter = document.getElementById('file-filter');
+            const typeFilter = document.getElementById('file-type-filter');
+            
+            function applyFilters() {
+                const nameQuery = nameFilter.value.toLowerCase();
+                const typeQuery = typeFilter.value;
+                
+                setTimeout(() => {
+                    const rows = document.querySelectorAll('.file-row');
+                    
+                    rows.forEach(row => {
+                        const name = row.dataset.name;
+                        const type = row.dataset.type;
+                        const attrs = row.dataset.attrs;
+                        
+                        let show = true;
+                        
+                        // Name filter
+                        if (nameQuery && !name.includes(nameQuery)) {
+                            show = false;
+                        }
+                        
+                        // Type filter
+                        if (typeQuery) {
+                            if (typeQuery === 'directory' && type !== 'directory') show = false;
+                            else if (typeQuery !== 'directory' && !attrs.includes(typeQuery)) show = false;
+                        }
+                        
+                        row.style.display = show ? '' : 'none';
+                    });
+                }, 100);
+            }
+            
+            nameFilter.addEventListener('input', applyFilters);
+            typeFilter.addEventListener('change', applyFilters);
+        }
+        
+        function convertFile(type) {
+            const formData = new FormData();
+            formData.append('session_id', SESSION_ID);
+            formData.append('type', type);
+            
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Converting...';
+            
+            showStatus('Starting conversion...', 'info');
+            
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    // File download
+                    return response.blob().then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        
+                        // Get filename from response headers
+                        const contentDisposition = response.headers.get('Content-Disposition');
+                        let filename = 'converted_file';
+                        if (contentDisposition) {
+                            const match = contentDisposition.match(/filename=(.+)/);
+                            if (match) {
+                                filename = match[1].replace(/"/g, '');
+                            }
+                        }
+                        
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        showStatus('File converted and downloaded successfully!', 'success');
+                    });
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Conversion failed');
+                    });
+                }
+            })
+            .catch(error => {
+                showStatus('Conversion failed: ' + error.message, 'error');
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
+        }
+        
+        function extractFiles() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Extracting...';
+            
+            showStatus('Extracting files...', 'info');
+            
+            fetch(`/extract/${SESSION_ID}`)
+            .then(response => {
+                if (response.ok) {
+                    return response.blob().then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        
+                        // Get filename from response headers
+                        const contentDisposition = response.headers.get('Content-Disposition');
+                        let filename = 'extracted_files.zip';
+                        if (contentDisposition) {
+                            const match = contentDisposition.match(/filename=(.+)/);
+                            if (match) {
+                                filename = match[1].replace(/"/g, '');
+                            }
+                        }
+                        
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        showStatus('Files extracted and downloaded successfully!', 'success');
+                    });
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Extraction failed');
+                    });
+                }
+            })
+            .catch(error => {
+                showStatus('Extraction failed: ' + error.message, 'error');
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
+        }
+        
+        function showProgress(show) {
+            document.getElementById('upload-progress').style.display = show ? 'block' : 'none';
+        }
+        
+        function showStatus(message, type) {
+            const statusContainer = document.getElementById('status-messages');
+            const alertClass = type === 'error' ? 'alert-danger' : 
+                             type === 'success' ? 'alert-success' : 'alert-info';
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            statusContainer.appendChild(alertDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.classList.remove('show');
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) {
+                            alertDiv.parentNode.removeChild(alertDiv);
+                        }
+                    }, 150);
+                }
+            }, 5000);
+        }
+        
+        function displayVolumeInfo(diskInfo) {
+            const volumeSection = document.getElementById('volume-info-section');
+            
+            if (diskInfo && diskInfo.volume_label) {
+                volumeSection.innerHTML = `
+                    <div class="alert alert-secondary mt-2">
+                        <small><strong>Volume Label:</strong> ${diskInfo.volume_label}</small>
+                    </div>
+                `;
+            } else {
+                volumeSection.innerHTML = '';
+            }
+        }
+        
+        function checkSessionStatus() {
+            fetch(`/session_status/${SESSION_ID}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.has_file) {
+                    loadFileInfo();
+                }
+            })
+            .catch(error => {
+                console.log('No existing session');
+            });
+        }
+    </script>
+</body>
+</html>
