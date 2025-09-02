@@ -402,8 +402,14 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static', exist_ok=True)
     
-    print("Starting TD0/IMG/IMD Web File Manager...")
-    print("Access the interface at: http://localhost:5001")
+    # Get port from environment variable for Railway deployment
+    port = int(os.environ.get('PORT', 5001))
+    debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+    
+    print("Starting Disk Image Manager Web Interface...")
+    print(f"Server will run on port: {port}")
+    if not debug_mode:
+        print("Running in production mode")
     print("Press Ctrl+C to stop the server")
     
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
