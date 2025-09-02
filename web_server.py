@@ -164,11 +164,20 @@ def sector_info(session_id):
     session_data = get_session(session_id)
     
     if not session_data.current_file:
+        print(f"DEBUG: No file loaded for session {session_id}")
         return jsonify({'error': 'No file loaded'}), 400
     
     try:
         working_file = session_data.temp_converted_file or session_data.current_file
+        print(f"DEBUG: Working with file: {working_file}")
+        print(f"DEBUG: File exists: {os.path.exists(working_file)}")
+        
+        if not os.path.exists(working_file):
+            print(f"DEBUG: Working file does not exist: {working_file}")
+            return jsonify({'error': 'Working file not found'}), 400
+            
         geometry = GeometryDetector().detect_from_file(working_file)
+        print(f"DEBUG: Geometry detected successfully: {geometry.type}")
         
         # Use original format if available, otherwise use detected format
         source_format = session_data.original_format or geometry.source_format.upper()
@@ -188,9 +197,13 @@ def sector_info(session_id):
             'notes': geometry.notes or []
         }
         
+        print(f"DEBUG: Sector info created successfully")
         return jsonify(session_data.sector_info)
         
     except Exception as e:
+        print(f"DEBUG: Exception in sector_info: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Error reading sector info: {str(e)}'}), 500
 
 @app.route('/list_files/<session_id>')
