@@ -27,83 +27,73 @@ app = Flask(__name__)
 app.secret_key = 'td0_manager_secret_key_2024'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Global storage for active sessions
-active_sessions = {}
+# Global storage for active operations (simplified approach)
+active_operations = {}
 UPLOAD_FOLDER = tempfile.gettempdir()
 ALLOWED_EXTENSIONS = {'td0', 'img', 'imd', 'TD0', 'IMG', 'IMD'}
 
-class SessionData:
-    def __init__(self):
-        self.session_id = str(uuid.uuid4())
-        self.current_file = None
-        self.original_filename = None  # Store original filename
-        self.original_format = None  # Store original file format
-        self.temp_converted_file = None
-        self.files = []
-        self.disk_info = {}
-        self.format_info = {}
-        self.sector_info = None
-        self.handler = None  # Add handler reference
-        self.last_activity = datetime.now()
-        
-    def cleanup(self):
-        """Clean up temporary files"""
-        # Clean up handler first
-        if hasattr(self, 'handler') and self.handler:
-            try:
-                if hasattr(self.handler, 'cleanup'):
-                    self.handler.cleanup()
-            except:
-                pass
-            self.handler = None
-        
-        # Clean up temporary files
-        for temp_file in [self.current_file, self.temp_converted_file]:
-            if temp_file and os.path.exists(temp_file):
-                try:
-                    os.unlink(temp_file)
-                except:
-                    pass
-        
-        # Clear the references
-        self.current_file = None
-        self.temp_converted_file = None
-        self.files = []
-        self.disk_info = {}
-        self.format_info = {}
-        self.sector_info = None
+def create_operation(filename, filepath, operation_id):
+    """Create a new operation for async processing"""
+    return {
+        'id': operation_id,
+        'uploaded_file': filepath,
+        'original_filename': filename,
+        'original_format': filename.split('.')[-1].upper(),
+        'temp_converted_file': None,
+        'status': 'File uploaded, starting processing...',
+        'progress': 25,
+        'completed': False,
+        'success': False,
+        'logs': [f'Uploaded file: {filename}'],
+        'files': [],
+        'disk_info': {},
+        'format_info': {},
+        'sector_info': None,
+        'handler': None,
+        'last_activity': datetime.now()
+    }
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-def get_session(session_id):
-    """Get or create session data"""
-    if session_id not in active_sessions:
-        active_sessions[session_id] = SessionData()
+def cleanup_operation_files(operation):
+    """Clean up files for an operation"""
+    # Clean up handler first
+    if 'handler' in operation and operation['handler']:
+        try:
+            if hasattr(operation['handler'], 'cleanup'):
+                operation['handler'].cleanup()
+        except:
+            pass
+        operation['handler'] = None
     
-    # Update last activity
-    active_sessions[session_id].last_activity = datetime.now()
-    return active_sessions[session_id]
+    # Clean up temporary files
+    for file_key in ['uploaded_file', 'temp_converted_file']:
+        if file_key in operation and operation[file_key] and os.path.exists(operation[file_key]):
+            try:
+                os.unlink(operation[file_key])
+            except:
+                pass
 
-def cleanup_old_sessions():
-    """Clean up sessions older than 2 hours"""
+def cleanup_old_operations():
+    """Clean up operations older than 2 hours"""
     cutoff = datetime.now() - timedelta(hours=2)
     to_remove = []
     
-    for session_id, session_data in active_sessions.items():
-        if session_data.last_activity < cutoff:
-            session_data.cleanup()
-            to_remove.append(session_id)
+    for operation_id, operation in active_operations.items():
+        if operation.get('last_activity', datetime.now()) < cutoff:
+            cleanup_operation_files(operation)
+            to_remove.append(operation_id)
     
-    for session_id in to_remove:
-        del active_sessions[session_id]
+    for operation_id in to_remove:
+        del active_operations[operation_id]
 
 def start_cleanup_thread():
-    """Start background thread to clean up old sessions"""
+    """Start background thread to clean up old operations"""
     def cleanup_worker():
         while True:
             time.sleep(300)  # Check every 5 minutes
-            cleanup_old_sessions()
+            cleanup_old_operations()
     
     thread = threading.Thread(target=cleanup_worker, daemon=True)
     thread.start()
@@ -119,11 +109,14 @@ def upload_file():
     """Handle file upload"""
     session_id = request.form.get('session_id', str(uuid.uuid4()))
     
+    print(f"DEBUG UPLOAD: Received session_id: {session_id}")
+    
     # Validate session_id
     if not session_id or not session_id.strip():
         return jsonify({'error': 'Invalid session ID'}), 400
         
     session_data = get_session(session_id)
+    print(f"DEBUG UPLOAD: Session data initialized, current_file: {session_data.current_file}")
     
     if 'file' not in request.files:
         return jsonify({'error': 'No file selected'}), 400
@@ -180,6 +173,13 @@ def upload_file():
         session_data.original_format = filename.split('.')[-1].upper()  # Store original format
         session_data.temp_converted_file = None  # Clear any previous conversion
         
+        print(f"DEBUG UPLOAD: File saved successfully:")
+        print(f"  - current_file: {session_data.current_file}")
+        print(f"  - original_filename: {session_data.original_filename}")
+        print(f"  - original_format: {session_data.original_format}")
+        print(f"  - session_id: {session_id}")
+        print(f"  - Active sessions count: {len(active_sessions)}")
+        
         # If it's IMD, convert to IMG for internal use
         if filename.lower().endswith('.imd'):
             try:
@@ -214,14 +214,22 @@ def upload_file():
 @app.route('/sector_info/<session_id>')
 def sector_info(session_id):
     """Get sector information"""
+    print(f"DEBUG SECTOR_INFO: Received session_id: {session_id}")
+    
     # Validate session_id
     if not session_id or not session_id.strip():
         return jsonify({'error': 'Invalid session ID'}), 400
         
     session_data = get_session(session_id)
+    print(f"DEBUG SECTOR_INFO: Session retrieved:")
+    print(f"  - current_file: {session_data.current_file}")
+    print(f"  - original_filename: {session_data.original_filename}")
+    print(f"  - temp_converted_file: {session_data.temp_converted_file}")
+    print(f"  - Active sessions count: {len(active_sessions)}")
     
     if not session_data.current_file:
-        print(f"DEBUG: No file loaded for session {session_id}")
+        print(f"DEBUG SECTOR_INFO: No file loaded for session {session_id}")
+        print(f"DEBUG SECTOR_INFO: Available sessions: {list(active_sessions.keys())[:5]}")
         return jsonify({'error': 'No file loaded'}), 400
     
     try:
@@ -277,13 +285,20 @@ def sector_info(session_id):
 @app.route('/list_files/<session_id>')
 def list_files(session_id):
     """List files in the disk image"""
+    print(f"DEBUG LIST_FILES: Received session_id: {session_id}")
+    
     # Validate session_id
     if not session_id or not session_id.strip():
         return jsonify({'error': 'Invalid session ID'}), 400
         
     session_data = get_session(session_id)
+    print(f"DEBUG LIST_FILES: Session retrieved:")
+    print(f"  - current_file: {session_data.current_file}")
+    print(f"  - original_filename: {session_data.original_filename}")
+    print(f"  - Active sessions count: {len(active_sessions)}")
     
     if not session_data.current_file:
+        print(f"DEBUG LIST_FILES: No file loaded for session {session_id}")
         return jsonify({'error': 'No file loaded'}), 400
     
     try:
