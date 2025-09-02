@@ -1,63 +1,69 @@
-/* TD0/IMG/IMD File Manager Styles */
+/* Custom styles for HP150/TD0 Disk Image Manager */
 
-body {
-    background-color: #f8f9fa;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* Logo styles */
+.logo-img {
+    max-height: 80px;
+    width: auto;
+    transition: transform 0.3s ease;
 }
 
-/* Upload Zone Styles */
+.logo-img:hover {
+    transform: scale(1.05);
+}
+
+/* Enhanced header */
+header {
+    background: linear-gradient(135deg, #212529 0%, #495057 100%) !important;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Upload zone improvements */
 .upload-zone {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     transition: all 0.3s ease;
     cursor: pointer;
-    background-color: #fff;
+    border-color: #dee2e6 !important;
 }
 
 .upload-zone:hover {
-    background-color: #f8f9fa;
+    background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
     border-color: #0d6efd !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
 }
 
 .upload-zone.drag-over {
-    background-color: #e3f2fd;
-    border-color: #2196f3 !important;
+    background: linear-gradient(135deg, #cfe2ff 0%, #e7f3ff 100%);
+    border-color: #0d6efd !important;
+    color: #0d6efd;
     transform: scale(1.02);
 }
 
-/* Card Styles */
+/* Card improvements */
 .card {
     border: none;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 8px;
 }
 
 .card:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
 }
 
 .card-header {
-    background-color: #f8f9fa;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     border-bottom: 1px solid #dee2e6;
     font-weight: 600;
+    border-radius: 8px 8px 0 0 !important;
 }
 
-/* Table Styles */
-.table-hover tbody tr:hover {
-    background-color: #f5f5f5;
-}
-
-.file-row {
-    transition: background-color 0.2s ease;
-}
-
-/* Badge Styles */
-.badge {
-    font-size: 0.7em;
-    margin-right: 2px;
-}
-
-/* Button Styles */
+/* Button enhancements */
 .btn {
     transition: all 0.2s ease;
+    font-weight: 500;
 }
 
 .btn:hover {
@@ -65,59 +71,90 @@ body {
 }
 
 .btn-outline-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.25);
 }
 
 .btn-outline-success:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+    box-shadow: 0 4px 8px rgba(25, 135, 84, 0.25);
 }
 
 .btn-outline-warning:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.25);
 }
 
-/* Progress Bar Styles */
+/* Table improvements */
+.table {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.file-row {
+    transition: all 0.2s ease;
+}
+
+/* Badge improvements */
+.badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+}
+
+/* Progress bar */
 .progress {
-    height: 8px;
+    height: 6px;
+    border-radius: 3px;
     background-color: #e9ecef;
 }
 
 .progress-bar {
-    background: linear-gradient(45deg, #007bff, #0056b3);
-    animation: progressAnimation 2s ease-in-out infinite;
+    background: linear-gradient(90deg, #0d6efd, #0056b3);
+    transition: width 0.4s ease;
 }
 
-@keyframes progressAnimation {
-    0% { width: 0%; }
-    50% { width: 100%; }
-    100% { width: 0%; }
-}
-
-/* Status Messages */
+/* Alert improvements */
 .alert {
+    border: none;
     border-radius: 8px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Header Styles */
-header {
-    border-radius: 0 0 10px 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+/* Status messages animation */
+#status-messages .alert {
+    animation: slideInRight 0.3s ease-out;
 }
 
-/* Responsive Design */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* File icons */
+.fa-file {
+    color: #6c757d;
+}
+
+.fa-folder {
+    color: #ffc107;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
-    .container-fluid {
-        padding: 10px;
+    .logo-img {
+        max-height: 60px;
     }
     
-    header .col-md-4 {
-        text-align: left !important;
-        margin-top: 10px;
+    header {
+        margin-bottom: 1rem;
     }
     
     .card-header .d-flex {
@@ -128,115 +165,18 @@ header {
     .card-header .d-flex > div {
         width: 100% !important;
     }
-    
-    .upload-zone {
-        padding: 20px !important;
-    }
-    
-    .upload-zone .fa-3x {
-        font-size: 2em !important;
-    }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    body {
-        background-color: #121212;
-        color: #ffffff;
+@media (max-width: 576px) {
+    .logo-img {
+        max-height: 50px;
     }
     
-    .card {
-        background-color: #1e1e1e;
-        color: #ffffff;
-    }
-    
-    .card-header {
-        background-color: #2d2d2d;
-        border-bottom-color: #404040;
-    }
-    
-    .table {
-        color: #ffffff;
-    }
-    
-    .table-hover tbody tr:hover {
-        background-color: #2d2d2d;
+    header h1 {
+        font-size: 1.5rem;
     }
     
     .upload-zone {
-        background-color: #1e1e1e;
-        border-color: #404040 !important;
-        color: #ffffff;
-    }
-    
-    .upload-zone:hover {
-        background-color: #2d2d2d;
-    }
-    
-    .form-control {
-        background-color: #2d2d2d;
-        border-color: #404040;
-        color: #ffffff;
-    }
-    
-    .form-select {
-        background-color: #2d2d2d;
-        border-color: #404040;
-        color: #ffffff;
-    }
-}
-
-/* Loading Animation */
-.spinner-border {
-    color: #007bff;
-}
-
-/* File Type Icons */
-.fa-file {
-    color: #6c757d;
-}
-
-.fa-folder {
-    color: #ffc107;
-}
-
-/* Utility Classes */
-.text-truncate {
-    max-width: 200px;
-}
-
-/* Scrollbar Styles for Webkit browsers */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Animation for section reveals */
-#file-info-section, #file-list-section {
-    animation: slideIn 0.5s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+        padding: 1.5rem 1rem !important;
     }
 }
