@@ -27,73 +27,67 @@ app = Flask(__name__)
 app.secret_key = 'td0_manager_secret_key_2024'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Global storage for active operations (simplified approach)
-active_operations = {}
+# Global storage for active sessions
+active_sessions = {}
 UPLOAD_FOLDER = tempfile.gettempdir()
 ALLOWED_EXTENSIONS = {'td0', 'img', 'imd', 'TD0', 'IMG', 'IMD'}
 
-def create_operation(filename, filepath, operation_id):
-    """Create a new operation for async processing"""
-    return {
-        'id': operation_id,
-        'uploaded_file': filepath,
-        'original_filename': filename,
-        'original_format': filename.split('.')[-1].upper(),
-        'temp_converted_file': None,
-        'status': 'File uploaded, starting processing...',
-        'progress': 25,
-        'completed': False,
-        'success': False,
-        'logs': [f'Uploaded file: {filename}'],
-        'files': [],
-        'disk_info': {},
-        'format_info': {},
-        'sector_info': None,
-        'handler': None,
-        'last_activity': datetime.now()
-    }
+class SessionData:
+    def __init__(self):
+        self.session_id = str(uuid.uuid4())
+        self.current_file = None
+        self.original_filename = None  # Store original filename
+        self.original_format = None  # Store original file format
+        self.temp_converted_file = None
+        self.files = []
+        self.disk_info = {}
+        self.format_info = {}
+        self.sector_info = None
+        self.last_activity = datetime.now()
+        
+    def cleanup(self):
+        """Clean up temporary files"""
+        for temp_file in [self.current_file, self.temp_converted_file]:
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
+        # Clear the references
+        self.current_file = None
+        self.temp_converted_file = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-def cleanup_operation_files(operation):
-    """Clean up files for an operation"""
-    # Clean up handler first
-    if 'handler' in operation and operation['handler']:
-        try:
-            if hasattr(operation['handler'], 'cleanup'):
-                operation['handler'].cleanup()
-        except:
-            pass
-        operation['handler'] = None
+def get_session(session_id):
+    """Get or create session data"""
+    if session_id not in active_sessions:
+        active_sessions[session_id] = SessionData()
     
-    # Clean up temporary files
-    for file_key in ['uploaded_file', 'temp_converted_file']:
-        if file_key in operation and operation[file_key] and os.path.exists(operation[file_key]):
-            try:
-                os.unlink(operation[file_key])
-            except:
-                pass
+    # Update last activity
+    active_sessions[session_id].last_activity = datetime.now()
+    return active_sessions[session_id]
 
-def cleanup_old_operations():
-    """Clean up operations older than 2 hours"""
+def cleanup_old_sessions():
+    """Clean up sessions older than 2 hours"""
     cutoff = datetime.now() - timedelta(hours=2)
     to_remove = []
     
-    for operation_id, operation in active_operations.items():
-        if operation.get('last_activity', datetime.now()) < cutoff:
-            cleanup_operation_files(operation)
-            to_remove.append(operation_id)
+    for session_id, session_data in active_sessions.items():
+        if session_data.last_activity < cutoff:
+            session_data.cleanup()
+            to_remove.append(session_id)
     
-    for operation_id in to_remove:
-        del active_operations[operation_id]
+    for session_id in to_remove:
+        del active_sessions[session_id]
 
 def start_cleanup_thread():
-    """Start background thread to clean up old operations"""
+    """Start background thread to clean up old sessions"""
     def cleanup_worker():
         while True:
             time.sleep(300)  # Check every 5 minutes
-            cleanup_old_operations()
+            cleanup_old_sessions()
     
     thread = threading.Thread(target=cleanup_worker, daemon=True)
     thread.start()
@@ -108,15 +102,7 @@ def index():
 def upload_file():
     """Handle file upload"""
     session_id = request.form.get('session_id', str(uuid.uuid4()))
-    
-    print(f"DEBUG UPLOAD: Received session_id: {session_id}")
-    
-    # Validate session_id
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
     session_data = get_session(session_id)
-    print(f"DEBUG UPLOAD: Session data initialized, current_file: {session_data.current_file}")
     
     if 'file' not in request.files:
         return jsonify({'error': 'No file selected'}), 400
@@ -125,60 +111,21 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
     
-    # Additional file validation
-    if not file.filename or len(file.filename.strip()) == 0:
-        return jsonify({'error': 'Invalid filename'}), 400
-    
     if file and allowed_file(file.filename):
-        try:
-            # Clean up previous files first
-            session_data.cleanup()
-            
-            # Save uploaded file
-            filename = secure_filename(file.filename)
-            if not filename:  # secure_filename might return empty string
-                return jsonify({'error': 'Invalid or unsafe filename'}), 400
-                
-            timestamp = int(time.time())
-            safe_filename = f"{timestamp}_{session_id[:8]}_{filename}"
-            filepath = os.path.join(UPLOAD_FOLDER, safe_filename)
-            
-            # Ensure upload directory exists and is writable
-            if not os.path.exists(UPLOAD_FOLDER):
-                try:
-                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                except OSError:
-                    return jsonify({'error': 'Cannot create upload directory'}), 500
-            
-            file.save(filepath)
-            
-            # Verify file was saved and has content
-            if not os.path.exists(filepath):
-                return jsonify({'error': 'File upload failed - file not saved'}), 500
-                
-            file_size = os.path.getsize(filepath)
-            if file_size == 0:
-                # Clean up empty file
-                try:
-                    os.unlink(filepath)
-                except:
-                    pass
-                return jsonify({'error': 'Uploaded file is empty'}), 400
-                
-        except Exception as e:
-            return jsonify({'error': f'File save error: {str(e)}'}), 500
+        # Clean up previous files first
+        session_data.cleanup()
+        
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        timestamp = int(time.time())
+        safe_filename = f"{timestamp}_{session_id[:8]}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, safe_filename)
+        file.save(filepath)
         
         session_data.current_file = filepath
         session_data.original_filename = filename  # Store original filename
         session_data.original_format = filename.split('.')[-1].upper()  # Store original format
         session_data.temp_converted_file = None  # Clear any previous conversion
-        
-        print(f"DEBUG UPLOAD: File saved successfully:")
-        print(f"  - current_file: {session_data.current_file}")
-        print(f"  - original_filename: {session_data.original_filename}")
-        print(f"  - original_format: {session_data.original_format}")
-        print(f"  - session_id: {session_id}")
-        print(f"  - Active sessions count: {len(active_sessions)}")
         
         # If it's IMD, convert to IMG for internal use
         if filename.lower().endswith('.imd'):
@@ -214,22 +161,10 @@ def upload_file():
 @app.route('/sector_info/<session_id>')
 def sector_info(session_id):
     """Get sector information"""
-    print(f"DEBUG SECTOR_INFO: Received session_id: {session_id}")
-    
-    # Validate session_id
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
     session_data = get_session(session_id)
-    print(f"DEBUG SECTOR_INFO: Session retrieved:")
-    print(f"  - current_file: {session_data.current_file}")
-    print(f"  - original_filename: {session_data.original_filename}")
-    print(f"  - temp_converted_file: {session_data.temp_converted_file}")
-    print(f"  - Active sessions count: {len(active_sessions)}")
     
     if not session_data.current_file:
-        print(f"DEBUG SECTOR_INFO: No file loaded for session {session_id}")
-        print(f"DEBUG SECTOR_INFO: Available sessions: {list(active_sessions.keys())[:5]}")
+        print(f"DEBUG: No file loaded for session {session_id}")
         return jsonify({'error': 'No file loaded'}), 400
     
     try:
@@ -241,18 +176,7 @@ def sector_info(session_id):
             print(f"DEBUG: Working file does not exist: {working_file}")
             return jsonify({'error': 'Working file not found'}), 400
             
-        # Validate file size
-        try:
-            file_size = os.path.getsize(working_file)
-            if file_size == 0:
-                return jsonify({'error': 'Working file is empty'}), 400
-        except OSError:
-            return jsonify({'error': 'Cannot access working file'}), 400
-            
         geometry = GeometryDetector().detect_from_file(working_file)
-        if not geometry:
-            return jsonify({'error': 'Failed to detect disk geometry'}), 500
-            
         print(f"DEBUG: Geometry detected successfully: {geometry.type}")
         
         # Use original format if available, otherwise use detected format
@@ -285,35 +209,13 @@ def sector_info(session_id):
 @app.route('/list_files/<session_id>')
 def list_files(session_id):
     """List files in the disk image"""
-    print(f"DEBUG LIST_FILES: Received session_id: {session_id}")
-    
-    # Validate session_id
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
     session_data = get_session(session_id)
-    print(f"DEBUG LIST_FILES: Session retrieved:")
-    print(f"  - current_file: {session_data.current_file}")
-    print(f"  - original_filename: {session_data.original_filename}")
-    print(f"  - Active sessions count: {len(active_sessions)}")
     
     if not session_data.current_file:
-        print(f"DEBUG LIST_FILES: No file loaded for session {session_id}")
         return jsonify({'error': 'No file loaded'}), 400
     
     try:
         working_file = session_data.temp_converted_file or session_data.current_file
-        
-        # Validate working file exists and is accessible
-        if not os.path.exists(working_file):
-            return jsonify({'error': 'Working file not found'}), 400
-            
-        try:
-            file_size = os.path.getsize(working_file)
-            if file_size == 0:
-                return jsonify({'error': 'Working file is empty'}), 400
-        except OSError:
-            return jsonify({'error': 'Cannot access working file'}), 400
         
         handler = EnhancedGenericDiskHandler(working_file)
         files = handler.list_files()
@@ -367,21 +269,10 @@ def convert_files():
     session_id = request.form.get('session_id')
     conversion_type = request.form.get('type')
     
-    # Validate inputs
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
-    if not conversion_type or not conversion_type.strip():
-        return jsonify({'error': 'Missing conversion type'}), 400
-    
     session_data = get_session(session_id)
     
     if not session_data.current_file:
         return jsonify({'error': 'No file loaded'}), 400
-        
-    # Validate current file exists
-    if not os.path.exists(session_data.current_file):
-        return jsonify({'error': 'Source file not found'}), 400
     
     try:
         if conversion_type == 'td0_to_img':
@@ -500,10 +391,6 @@ def convert_files():
 @app.route('/extract/<session_id>')
 def extract_files(session_id):
     """Extract files from disk image"""
-    # Validate session_id
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
     session_data = get_session(session_id)
     
     if not session_data.current_file:
@@ -512,101 +399,48 @@ def extract_files(session_id):
     try:
         working_file = session_data.temp_converted_file or session_data.current_file
         
-        # Ensure working file exists
-        if not os.path.exists(working_file):
-            return jsonify({'error': 'Working file not found'}), 400
-        
-        # Use existing handler if available, otherwise create new one
-        if hasattr(session_data, 'handler') and session_data.handler:
-            handler = session_data.handler
-        else:
-            handler = EnhancedGenericDiskHandler(working_file)
-            session_data.handler = handler
-        
-        # Get format info for debugging
-        format_info = handler.get_format_info()
-        print(f"DEBUG: Extracting from format: {format_info.get('detected_format', 'unknown')}")
-        
-        # Create temporary directory for extraction
-        temp_dir = tempfile.mkdtemp(prefix='extracted_files_')
-        print(f"DEBUG: Created temp directory: {temp_dir}")
-        
-        # Extract files
-        extracted_files = handler.extract_files(temp_dir)
-        print(f"DEBUG: Extracted {len(extracted_files) if extracted_files else 0} files")
-        
-        if not extracted_files:
-            # Clean up empty temp directory
-            import shutil
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            return jsonify({'error': 'No files were extracted or files could not be read'}), 400
-        
-        # Create ZIP file with extracted files
-        import zipfile
-        import shutil
-        temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
-        temp_zip_path = temp_zip.name
-        temp_zip.close()
-        
-        try:
-            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        with EnhancedGenericDiskHandler(working_file) as handler:
+            format_info = handler.get_format_info()
+            
+            # Create temporary directory for extraction
+            temp_dir = tempfile.mkdtemp(prefix='extracted_files_')
+            extracted_files = handler.extract_files(temp_dir)
+            
+            if not extracted_files:
+                return jsonify({'error': 'No files were extracted'}), 400
+            
+            # Create ZIP file with extracted files
+            import zipfile
+            temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+            temp_zip_path = temp_zip.name
+            temp_zip.close()
+            
+            with zipfile.ZipFile(temp_zip_path, 'w') as zipf:
                 for original_name, extracted_path in extracted_files.items():
-                    if os.path.exists(extracted_path):
-                        zipf.write(extracted_path, original_name)
-                        print(f"DEBUG: Added {original_name} to zip")
-                    else:
-                        print(f"DEBUG: Warning - file not found: {extracted_path}")
+                    zipf.write(extracted_path, original_name)
             
             # Clean up extraction directory
+            import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            # Verify ZIP file was created and has content
-            if os.path.exists(temp_zip_path) and os.path.getsize(temp_zip_path) > 0:
-                return send_file(temp_zip_path, 
-                               as_attachment=True, 
-                               download_name=f"{os.path.splitext(session_data.original_filename or os.path.basename(session_data.current_file))[0]}_files.zip")
-            else:
-                return jsonify({'error': 'Failed to create ZIP file'}), 500
-                
-        except Exception as zip_error:
-            # Clean up on ZIP creation error
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            if os.path.exists(temp_zip_path):
-                try:
-                    os.unlink(temp_zip_path)
-                except:
-                    pass
-            return jsonify({'error': f'ZIP creation error: {str(zip_error)}'}), 500
+            return send_file(temp_zip_path, 
+                           as_attachment=True, 
+                           download_name=f"{os.path.splitext(session_data.original_filename or os.path.basename(session_data.current_file))[0]}_files.zip")
             
     except Exception as e:
-        print(f"DEBUG: Extraction error: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': f'Extraction error: {str(e)}'}), 500
 
 @app.route('/session_status/<session_id>')
 def session_status(session_id):
     """Get session status"""
-    # Validate session_id
-    if not session_id or not session_id.strip():
-        return jsonify({'error': 'Invalid session ID'}), 400
-        
-    try:
-        session_data = get_session(session_id)
-        
-        # Additional validation - check if files still exist
-        current_file_exists = session_data.current_file and os.path.exists(session_data.current_file)
-        temp_file_exists = session_data.temp_converted_file and os.path.exists(session_data.temp_converted_file)
-        
-        return jsonify({
-            'has_file': current_file_exists,
-            'filename': session_data.original_filename or (os.path.basename(session_data.current_file) if session_data.current_file else None),
-            'is_converted': temp_file_exists,
-            'session_id': session_id,
-            'files_loaded': len(session_data.files) if session_data.files else 0
-        })
-    except Exception as e:
-        return jsonify({'error': f'Session status error: {str(e)}'}), 500
+    session_data = get_session(session_id)
+    
+    return jsonify({
+        'has_file': session_data.current_file is not None,
+        'filename': session_data.original_filename or (os.path.basename(session_data.current_file) if session_data.current_file else None),
+        'is_converted': session_data.temp_converted_file is not None,
+        'session_id': session_id
+    })
 
 # Cleanup thread
 start_cleanup_thread()
