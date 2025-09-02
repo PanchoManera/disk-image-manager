@@ -217,45 +217,48 @@ def list_files(session_id):
     try:
         working_file = session_data.temp_converted_file or session_data.current_file
         
-        with EnhancedGenericDiskHandler(session_data.current_file) as handler:
-            files = handler.list_files()
-            disk_info = handler.get_disk_info()
-            format_info = handler.get_format_info()
-            
-            # Convert files to JSON-serializable format
-            files_data = []
-            for file_entry in files:
-                files_data.append({
-                    'name': file_entry.name,
-                    'ext': file_entry.ext,
-                    'full_name': file_entry.full_name,
-                    'size': file_entry.size,
-                    'attr': file_entry.attr,
-                    'cluster': file_entry.cluster,
-                    'offset': file_entry.offset,
-                    'format_type': getattr(file_entry, 'format_type', 'unknown'),
-                    'is_directory': file_entry.is_directory,
-                    'is_volume': file_entry.is_volume,
-                    'attr_flags': {
-                        'readonly': bool(file_entry.attr & 0x01),
-                        'hidden': bool(file_entry.attr & 0x02),
-                        'system': bool(file_entry.attr & 0x04),
-                        'volume': bool(file_entry.attr & 0x08),
-                        'directory': bool(file_entry.attr & 0x10),
-                        'archive': bool(file_entry.attr & 0x20)
-                    }
-                })
-            
-            session_data.files = files_data
-            session_data.disk_info = disk_info
-            session_data.format_info = format_info
-            
-            return jsonify({
-                'files': files_data,
-                'disk_info': disk_info,
-                'format_info': format_info,
-                'total_files': len(files_data)
+        handler = EnhancedGenericDiskHandler(working_file)
+        files = handler.list_files()
+        disk_info = handler.get_disk_info()
+        format_info = handler.get_format_info()
+        
+        # Store handler reference to prevent cleanup until session ends
+        session_data.handler = handler
+        
+        # Convert files to JSON-serializable format
+        files_data = []
+        for file_entry in files:
+            files_data.append({
+                'name': file_entry.name,
+                'ext': file_entry.ext,
+                'full_name': file_entry.full_name,
+                'size': file_entry.size,
+                'attr': file_entry.attr,
+                'cluster': file_entry.cluster,
+                'offset': file_entry.offset,
+                'format_type': getattr(file_entry, 'format_type', 'unknown'),
+                'is_directory': file_entry.is_directory,
+                'is_volume': file_entry.is_volume,
+                'attr_flags': {
+                    'readonly': bool(file_entry.attr & 0x01),
+                    'hidden': bool(file_entry.attr & 0x02),
+                    'system': bool(file_entry.attr & 0x04),
+                    'volume': bool(file_entry.attr & 0x08),
+                    'directory': bool(file_entry.attr & 0x10),
+                    'archive': bool(file_entry.attr & 0x20)
+                }
             })
+        
+        session_data.files = files_data
+        session_data.disk_info = disk_info
+        session_data.format_info = format_info
+        
+        return jsonify({
+            'files': files_data,
+            'disk_info': disk_info,
+            'format_info': format_info,
+            'total_files': len(files_data)
+        })
             
     except Exception as e:
         return jsonify({'error': f'Error listing files: {str(e)}'}), 500
@@ -364,7 +367,7 @@ def extract_files(session_id):
     try:
         working_file = session_data.temp_converted_file or session_data.current_file
         
-        with EnhancedGenericDiskHandler(session_data.current_file) as handler:
+        with EnhancedGenericDiskHandler(working_file) as handler:
             format_info = handler.get_format_info()
             
             # Create temporary directory for extraction
