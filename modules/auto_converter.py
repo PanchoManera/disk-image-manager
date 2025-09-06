@@ -46,10 +46,10 @@ class AutoConverter:
             temp_fd, temp_path = tempfile.mkstemp(suffix='.img', prefix='converted_')
             os.close(temp_fd)
             
-            # Configure conversion options for HP150 compatibility
+            # Configure conversion options respecting original geometry
             options = ConversionOptions(
                 warn_only=True,
-                force_hp150=True,
+                force_hp150=False,
                 fix_boot_sector=True,
                 verbose=False
             )

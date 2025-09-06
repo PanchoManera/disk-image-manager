@@ -853,7 +853,7 @@ Disk Geometry:
         try:
             options = ConversionOptions(
                 warn_only=True,
-                force_hp150=True,
+                force_hp150=False,
                 fix_boot_sector=True,
                 generate_def=False
             )
